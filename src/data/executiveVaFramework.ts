@@ -626,7 +626,7 @@ export function generateDynamicExecutiveVaTask(params: GenerateExecutiveTaskPara
     return {
       id: `task-eva-day-4`,
       dayNumber: 4,
-      phaseId: 1,
+      phaseId: 2,
       title: `Day 4: Executive Inbox Triage & 4-Bucket Priority Action Matrix`,
       category: 'Inbox Management',
       priority: 'high',
@@ -648,7 +648,7 @@ export function generateDynamicExecutiveVaTask(params: GenerateExecutiveTaskPara
     return {
       id: `task-eva-day-5`,
       dayNumber: 5,
-      phaseId: 1,
+      phaseId: 2,
       title: `Day 5: Industry Market Intelligence & Competitor Benchmark Research`,
       category: 'Research & Synthesis',
       priority: 'medium',
@@ -670,7 +670,7 @@ export function generateDynamicExecutiveVaTask(params: GenerateExecutiveTaskPara
     return {
       id: `task-eva-day-6`,
       dayNumber: 6,
-      phaseId: 1,
+      phaseId: 2,
       title: `Day 6: Executive Business Travel Planning & Multi-Option Logistics`,
       category: 'Calendar & Travel',
       priority: 'high',
@@ -692,7 +692,7 @@ export function generateDynamicExecutiveVaTask(params: GenerateExecutiveTaskPara
     return {
       id: `task-eva-day-7`,
       dayNumber: 7,
-      phaseId: 1,
+      phaseId: 2,
       title: `Day 7: C-Suite Meeting Preparation & 1-Page Pre-Call Briefing Dossier`,
       category: 'Operations & CRM',
       priority: 'high',
@@ -717,7 +717,7 @@ export function generateDynamicExecutiveVaTask(params: GenerateExecutiveTaskPara
     return {
       id: `task-eva-day-8`,
       dayNumber: 8,
-      phaseId: 2,
+      phaseId: 3,
       title: `Day 8: Incomplete Founder Instruction — Meeting Clarification & Booking`,
       category: 'Client Communications',
       priority: 'urgent',
@@ -739,7 +739,7 @@ export function generateDynamicExecutiveVaTask(params: GenerateExecutiveTaskPara
     return {
       id: `task-eva-day-9`,
       dayNumber: 9,
-      phaseId: 2,
+      phaseId: 3,
       title: `Day 9: Ambiguous Travel Request — Clarification & Multi-City Itinerary`,
       category: 'Calendar & Travel',
       priority: 'high',
@@ -762,7 +762,7 @@ export function generateDynamicExecutiveVaTask(params: GenerateExecutiveTaskPara
     return {
       id: `task-eva-day-10`,
       dayNumber: 10,
-      phaseId: 2,
+      phaseId: 3,
       title: `Day 10: Multi-Request Administrative Triage with Incomplete Details`,
       category: 'Operations & CRM',
       priority: 'urgent',
@@ -788,7 +788,7 @@ export function generateDynamicExecutiveVaTask(params: GenerateExecutiveTaskPara
     return {
       id: `task-eva-day-11`,
       dayNumber: 11,
-      phaseId: 2,
+      phaseId: 4,
       title: `Day 11: Multi-Skill Task — Executive Travel Combined with Calendar Deconfliction`,
       category: 'Calendar & Travel',
       priority: 'urgent',
@@ -811,7 +811,7 @@ export function generateDynamicExecutiveVaTask(params: GenerateExecutiveTaskPara
     return {
       id: `task-eva-day-12`,
       dayNumber: 12,
-      phaseId: 2,
+      phaseId: 4,
       title: `Day 12: Multi-Skill Task — Email Prioritization Combined with Urgent Research & Competing Deadlines`,
       category: 'Research & Synthesis',
       priority: 'urgent',
@@ -837,7 +837,7 @@ export function generateDynamicExecutiveVaTask(params: GenerateExecutiveTaskPara
     return {
       id: `task-eva-day-13`,
       dayNumber: 13,
-      phaseId: 2,
+      phaseId: 5,
       title: `Day 13: High-Pressure Executive Operations & Confidential Stakeholder Liaison`,
       category: 'Operations & CRM',
       priority: 'urgent',
@@ -860,7 +860,7 @@ export function generateDynamicExecutiveVaTask(params: GenerateExecutiveTaskPara
   return {
     id: `task-eva-day-14`,
     dayNumber: 14,
-    phaseId: 2,
+    phaseId: 5,
     title: `Day 14: Final 14-Day Practical Capstone — Full-Spectrum Executive VA Simulation`,
     category: 'Operations & CRM',
     priority: 'urgent',

@@ -99,6 +99,67 @@ export const SIMULATION_STAGES = [
 ];
 
 // ==============================================================================
+// 14-DAY BETA COMPRESSION PHASES (Preserves 90-day curriculum while delivering 14-day beta)
+// ==============================================================================
+export const BETA_14_DAY_PHASES = [
+  {
+    phaseId: 1,
+    name: 'Phase 1 — Foundation & Onboarding',
+    title: 'Foundation & Client Onboarding',
+    daysRange: 'Days 1–3',
+    startDay: 1,
+    endDay: 3,
+    description: 'Fundamental communication protocols, ticket/inbox hygiene, SOP adherence, and understanding client voice.',
+    focusCompetencies: ['Accuracy', 'Communication', 'Client Handling'],
+    difficulty: 'easy' as const,
+  },
+  {
+    phaseId: 2,
+    name: 'Phase 2 — Independent Execution',
+    title: 'Independent Execution',
+    daysRange: 'Days 4–7',
+    startDay: 4,
+    endDay: 7,
+    description: 'Independent core deliverable execution, multi-tier requests, research, and structured deliverables.',
+    focusCompetencies: ['Accuracy', 'Judgement', 'Initiative'],
+    difficulty: 'medium' as const,
+  },
+  {
+    phaseId: 3,
+    name: 'Phase 3 — Problem Solving & Clarification',
+    title: 'Problem Solving & Clarification',
+    daysRange: 'Days 8–10',
+    startDay: 8,
+    endDay: 10,
+    description: 'Navigating incomplete briefs, proactive client clarification, de-escalation, and handling ambiguity.',
+    focusCompetencies: ['Judgement', 'Communication', 'Client Handling'],
+    difficulty: 'medium' as const,
+  },
+  {
+    phaseId: 4,
+    name: 'Phase 4 — Pressure & Multiple Tasks',
+    title: 'Pressure & Multiple Tasks',
+    daysRange: 'Days 11–12',
+    startDay: 11,
+    endDay: 12,
+    description: 'High-velocity operational execution, concurrent deadlines, triage surges, and zero-error output.',
+    focusCompetencies: ['Judgement', 'Initiative', 'Accuracy'],
+    difficulty: 'hard' as const,
+  },
+  {
+    phaseId: 5,
+    name: 'Phase 5 — Capstone Practical Evaluation',
+    title: 'Professional Execution & Capstone',
+    daysRange: 'Days 13–14',
+    startDay: 13,
+    endDay: 14,
+    description: 'Autonomous high-stakes operations, executive SOP development, and comprehensive multi-scenario practical capstone exam.',
+    focusCompetencies: ['Accuracy', 'Communication', 'Judgement', 'Initiative', 'Client Handling'],
+    difficulty: 'crisis' as const,
+  },
+];
+
+// ==============================================================================
 // 1. CUSTOMER SERVICE VA
 // ==============================================================================
 const CUSTOMER_SERVICE_VA: VaServiceDefinition = {

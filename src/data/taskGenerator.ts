@@ -1,25 +1,26 @@
 // ==============================================================================
-// CoreGuide VA Simulator - Dynamic Task & 5-Dimension Evaluation Engine (V1)
-// Generates realistic tasks across 90 days & evaluates across the 5 Core Criteria:
-// 1. Accuracy (0-10)
-// 2. Communication (0-10)
-// 3. Judgement (0-10)
-// 4. Initiative (0-10)
-// 5. Client Handling (0-10)
+// CoreGuide VA Simulator - Dynamic Task & 5-Dimension Evaluation Engine (V2)
+// Adaptive Task Generation & Repetition Prevention across All 7 VA Services:
+// 1. Executive VA (executive_admin)
+// 2. Customer Service VA (customer_service)
+// 3. Social Media VA (social_media)
+// 4. Travel Management VA (travel_management)
+// 5. Social Marketing & Cold Outreach VA (social_outreach)
+// 6. Lead Generation & Research VA (lead_gen_research)
+// 7. Content Writing VA (content_writing)
 // ==============================================================================
 
 import { TaskItem, TaskEvaluation, ClientPersona, CompetencyMetric } from '../types';
 import { VaServiceDefinition, SIMULATION_STAGES } from './vaServicesData';
 import { generateDynamicExecutiveVaTask } from './executiveVaFramework';
+import { generateCustomerServiceTask } from './customerServiceFramework';
+import { generateSocialMediaTask } from './socialMediaFramework';
+import { generateTravelManagementTask } from './travelManagementFramework';
+import { generateSocialOutreachTask } from './socialOutreachFramework';
+import { generateLeadGenTask } from './leadGenResearchFramework';
+import { generateContentWritingTask } from './contentWritingFramework';
 
-// Determine stage for a given day based on the official 6 stages:
-// Stage 1: Days 1–7
-// Stage 2: Days 8–21
-// Stage 3: Days 22–35
-// Stage 4: Days 36–50
-// Stage 5: Days 51–70
-// Stage 6: Days 71–89
-// Day 90: Capstone
+// Determine stage for a given day based on the official 6 stages (90-day curriculum preservation):
 export const getStageForDay = (day: number) => {
   if (day >= 90) return SIMULATION_STAGES[6]; // Day 90 Capstone
   if (day >= 71) return SIMULATION_STAGES[5]; // Stage 6 (Days 71–89)
@@ -30,200 +31,183 @@ export const getStageForDay = (day: number) => {
   return SIMULATION_STAGES[0];                // Stage 1 (Days 1–7)
 };
 
-// Generates dynamic realistic task for a given day & service
+export interface TaskGenerationOptions {
+  competencies?: CompetencyMetric[];
+  previousTasks?: TaskItem[];
+  previousSubmissions?: any[];
+  identifiedWeaknesses?: string[];
+  chatHistory?: any[];
+  industry?: string;
+  isRemediation?: boolean;
+}
+
+// Repetition Prevention Engine: compares generated candidate against recent tasks across
+// objective, scenario, deliverables, and category to prevent substantial duplicates
+function preventRepetition(candidate: TaskItem, previousTasks: TaskItem[] = [], isRemediation = false): TaskItem {
+  if (previousTasks.length === 0) return candidate;
+
+  // Look back at the last 3 completed tasks
+  const recentTasks = previousTasks.slice(-3);
+  const duplicateMatch = recentTasks.find((prev) => {
+    if (prev.id === candidate.id) return true;
+
+    // 1. Normalized title match
+    const titleA = prev.title.trim().toLowerCase().replace(/^day \d+:\s*/, '');
+    const titleB = candidate.title.trim().toLowerCase().replace(/^day \d+:\s*/, '');
+    const titleSimilar = titleA === titleB || (titleA.length > 15 && titleB.includes(titleA));
+
+    // 2. Deliverable overlap
+    const prevDels = prev.deliverables?.map((d) => d.label.toLowerCase()) || [];
+    const candDels = candidate.deliverables?.map((d) => d.label.toLowerCase()) || [];
+    const sharedDels = candDels.filter((cd) => prevDels.some((pd) => pd === cd || (cd.length > 20 && pd.includes(cd.slice(0, 25)))));
+    const delSimilar = candDels.length > 0 && sharedDels.length >= Math.ceil(candDels.length * 0.75);
+
+    // 3. Substantial brief overlap
+    const briefA = prev.brief.slice(0, 70).toLowerCase();
+    const briefB = candidate.brief.slice(0, 70).toLowerCase();
+    const briefSimilar = briefA === briefB;
+
+    return titleSimilar || delSimilar || briefSimilar;
+  });
+
+  if (duplicateMatch) {
+    if (isRemediation) {
+      // Good remediation: Preserve skill focus, but mutate business context, sub-vertical & buying triggers
+      return {
+        ...candidate,
+        id: `${candidate.id}-remed-${Date.now() % 1000}`,
+        title: `${candidate.title} (Targeted Remediation Scenario)`,
+        priority: 'high',
+        brief: `[Targeted Skill Remediation] Apply this core methodology to an alternative scenario: focus on an adjacent sub-vertical with distinct buying triggers and alternative decision-makers. ${candidate.brief}`,
+      };
+    }
+
+    // Unintentional repetition: inject contextual differentiation variant
+    return {
+      ...candidate,
+      id: `${candidate.id}-var-${Date.now() % 1000}`,
+      title: `${candidate.title} (Advanced Scope)`,
+      priority: candidate.priority === 'low' ? 'medium' : candidate.priority === 'medium' ? 'high' : 'urgent',
+      brief: `[Accelerated Execution Window] ${candidate.brief} Note: Ensure enhanced attention to client preferences and include a priority handover note.`,
+    };
+  }
+
+  return candidate;
+}
+
+// Generates dynamic realistic task for a given day & service across all 7 official VA tracks
 export const generateTaskForDay = (
   day: number,
   service: VaServiceDefinition,
   client: ClientPersona,
-  options?: {
-    competencies?: CompetencyMetric[];
-    previousTasks?: TaskItem[];
-    previousSubmissions?: any[];
-    identifiedWeaknesses?: string[];
-  }
+  options?: TaskGenerationOptions
 ): TaskItem => {
-  // If Executive VA track is active, leverage the 14-day dynamic Executive VA framework
-  if (service.id === 'executive_admin') {
-    return generateDynamicExecutiveVaTask({
-      dayNumber: day,
-      client,
-      competencies: options?.competencies,
-      previousTasks: options?.previousTasks,
-      previousSubmissions: options?.previousSubmissions,
-      identifiedWeaknesses: options?.identifiedWeaknesses,
-    });
+  const opts = options || {};
+  let generatedTask: TaskItem;
+
+  switch (service.id) {
+    case 'executive_admin':
+      generatedTask = generateDynamicExecutiveVaTask({
+        dayNumber: day,
+        client,
+        competencies: opts.competencies,
+        previousTasks: opts.previousTasks,
+        previousSubmissions: opts.previousSubmissions,
+        identifiedWeaknesses: opts.identifiedWeaknesses,
+        chatHistory: opts.chatHistory,
+      });
+      break;
+
+    case 'customer_service':
+      generatedTask = generateCustomerServiceTask({
+        dayNumber: day,
+        client,
+        competencies: opts.competencies,
+        previousTasks: opts.previousTasks,
+        previousSubmissions: opts.previousSubmissions,
+        identifiedWeaknesses: opts.identifiedWeaknesses,
+        chatHistory: opts.chatHistory,
+      });
+      break;
+
+    case 'social_media':
+      generatedTask = generateSocialMediaTask({
+        dayNumber: day,
+        client,
+        competencies: opts.competencies,
+        previousTasks: opts.previousTasks,
+        previousSubmissions: opts.previousSubmissions,
+        identifiedWeaknesses: opts.identifiedWeaknesses,
+        chatHistory: opts.chatHistory,
+      });
+      break;
+
+    case 'travel_management':
+      generatedTask = generateTravelManagementTask({
+        dayNumber: day,
+        client,
+        competencies: opts.competencies,
+        previousTasks: opts.previousTasks,
+        previousSubmissions: opts.previousSubmissions,
+        identifiedWeaknesses: opts.identifiedWeaknesses,
+        chatHistory: opts.chatHistory,
+      });
+      break;
+
+    case 'social_outreach':
+      generatedTask = generateSocialOutreachTask({
+        dayNumber: day,
+        client,
+        competencies: opts.competencies,
+        previousTasks: opts.previousTasks,
+        previousSubmissions: opts.previousSubmissions,
+        identifiedWeaknesses: opts.identifiedWeaknesses,
+        chatHistory: opts.chatHistory,
+      });
+      break;
+
+    case 'lead_gen_research':
+      generatedTask = generateLeadGenTask({
+        dayNumber: day,
+        client,
+        competencies: opts.competencies,
+        previousTasks: opts.previousTasks,
+        previousSubmissions: opts.previousSubmissions,
+        identifiedWeaknesses: opts.identifiedWeaknesses,
+        chatHistory: opts.chatHistory,
+      });
+      break;
+
+    case 'content_writing':
+      generatedTask = generateContentWritingTask({
+        dayNumber: day,
+        client,
+        competencies: opts.competencies,
+        previousTasks: opts.previousTasks,
+        previousSubmissions: opts.previousSubmissions,
+        identifiedWeaknesses: opts.identifiedWeaknesses,
+        chatHistory: opts.chatHistory,
+      });
+      break;
+
+    default:
+      generatedTask = generateCustomerServiceTask({
+        dayNumber: day,
+        client,
+        competencies: opts.competencies,
+        previousTasks: opts.previousTasks,
+        previousSubmissions: opts.previousSubmissions,
+        identifiedWeaknesses: opts.identifiedWeaknesses,
+      });
+      break;
   }
 
-  const stage = getStageForDay(day);
-
-  // Check if we have a predefined task in service.initialTasks
-  const predefined = service.initialTasks.find((t) => t.dayNumber === day);
-  if (predefined) {
-    return { ...predefined };
-  }
-
-  // Otherwise, procedurally generate a rich scenario tailored to the service & stage
-  let title = '';
-  let brief = '';
-  let clientContext = '';
-  let category: TaskItem['category'] = 'Client Communications';
-  let priority: TaskItem['priority'] = 'medium';
-  let estimatedMinutes = 35;
-  let deliverables: TaskItem['deliverables'] = [];
-
-  if (service.id === 'customer_service') {
-    if (day === 90) {
-      // Day 90 Capstone
-      title = 'Day 90: Final Capstone Assessment — Multi-Scenario Crisis & SOP Audit';
-      priority = 'urgent';
-      estimatedMinutes = 60;
-      category = 'Operations & CRM';
-      brief = `Complete your final 3-part graduation practical capstone for ${client.companyName}: 1. De-escalate an executive VIP customer threat of public escalation due to a batch shipping delay. 2. Resolve a live queue backlog of 35 tickets with custom macro triage logic. 3. Draft a comprehensive 4-page Customer Experience Standard Operating Procedure (SOP) handbook.`;
-      clientContext = `${client.ceoName} message: "This is your final Day 90 graduation capstone. You have managed our customer queue with exceptional composure. Treat this scenario as live and deliver your highest standard of support."`;
-      deliverables = [
-        { id: `del-cs-${day}-1`, label: 'VIP Executive De-escalation & Containment Response', type: 'email_draft', required: true },
-        { id: `del-cs-${day}-2`, label: '35-Ticket Triage & Routing Matrix', type: 'spreadsheet', required: true },
-        { id: `del-cs-${day}-3`, label: `Master ${client.companyName} Support SOP Handbook (v1.0)`, type: 'document', required: true },
-      ];
-    } else if (stage.stageNumber === 5) {
-      // Stage 5: Pressure & Multiple Tasks (Days 51–70)
-      title = `Day ${day}: Flash Sale Queue Surge — 50-Ticket Rush Triage & SLA Rescue`;
-      priority = 'urgent';
-      estimatedMinutes = 45;
-      category = 'Operations & CRM';
-      brief = 'During peak promotional traffic, support ticket volume surged by 300%. Triage and draft categorized responses for 5 common inquiry clusters: 1. Delayed carrier tracking, 2. Address modification requests, 3. Broken discount codes, 4. Sold out restock queries, 5. Cancellation before dispatch.';
-      clientContext = `${client.ceoName} message: "Queue is backing up fast! We have an SLA target of under 1 hour first-response time. Focus on speed while keeping our tone friendly and empathetic."`;
-      deliverables = [
-        { id: `del-cs-${day}-1`, label: '5-Category Rapid Response Macro Bank', type: 'document', required: true },
-        { id: `del-cs-${day}-2`, label: 'Queue Prioritization Log', type: 'spreadsheet', required: true },
-      ];
-    } else if (stage.stageNumber === 4) {
-      // Stage 4: Client Management (Days 36–50)
-      title = `Day ${day}: Client Promo Glitch Containment & Policy Alignment`;
-      priority = 'high';
-      estimatedMinutes = 40;
-      category = 'Client Communications';
-      brief = 'An incorrect promotional discount code was accidentally shared with 300 subscribers. Draft a graceful, empathetic email to affected customers explaining the glitch, offering an immediate 25% apology gift code with free shipping, and compile a status summary for the executive team.';
-      clientContext = `${client.ceoName} message: "We need proactive client management here. Lead customer communication with extreme care and warmth so we protect customer lifetime value."`;
-      deliverables = [
-        { id: `del-cs-${day}-1`, label: 'Apology & Order Adjustment Email Blast Draft', type: 'email_draft', required: true },
-        { id: `del-cs-${day}-2`, label: 'Executive Status Summary & Risk Log', type: 'document', required: true },
-      ];
-    } else if (stage.stageNumber === 3) {
-      // Stage 3: Problem Solving (Days 22–35)
-      title = `Day ${day}: Ambiguous Return Exception & Tracking Discrepancy`;
-      priority = 'medium';
-      estimatedMinutes = 35;
-      category = 'Client Communications';
-      brief = 'A high-spend customer claims her package was marked "Delivered" by the carrier but never arrived. Standard policy requires a 5-day carrier investigation, but the customer needs the item for an upcoming trip. Evaluate customer history and propose a win-win resolution.';
-      clientContext = `${client.ceoName} message: "Use your best judgement here. Balance our refund policy with customer loyalty."`;
-      deliverables = [
-        { id: `del-cs-${day}-1`, label: 'Customer Resolution Email with Tracking Update', type: 'email_draft', required: true },
-        { id: `del-cs-${day}-2`, label: 'Internal Exception Approval Note', type: 'text', required: true },
-      ];
-    } else {
-      // Stage 2 & Stage 1
-      title = `Day ${day}: Customer Guidance & Knowledge Base FAQ Update`;
-      priority = 'medium';
-      estimatedMinutes = 30;
-      category = 'Client Communications';
-      brief = `A group of customers requested guidance on product usage and subscription renewal options. Draft clear, step-by-step instructions and update the corresponding customer FAQ sheet for ${client.companyName}.`;
-      clientContext = `${client.ceoName} message: "Educating customers clearly reduces repeat tickets. Keep your tone encouraging and concise."`;
-      deliverables = [
-        { id: `del-cs-${day}-1`, label: 'Customer Guidance Email Draft', type: 'email_draft', required: true },
-        { id: `del-cs-${day}-2`, label: 'Updated Knowledge Base FAQ Entries', type: 'document', required: true },
-      ];
-    }
-  } else if (service.id === 'social_media') {
-    if (day === 90) {
-      title = 'Day 90: Final Capstone — Master 30-Day Campaign Blueprint & Launch Strategy';
-      priority = 'urgent';
-      estimatedMinutes = 60;
-      category = 'Research & Synthesis';
-      brief = `Create a comprehensive 30-day multi-channel campaign blueprint for ${client.companyName}. Includes 15 short-form video storyboard briefs, 10 carousel copy drafts with hooks, a 20-creator influencer seeding roster, and a community crisis moderation playbook.`;
-      clientContext = `${client.ceoName} message: "This is your final capstone project. Show your complete mastery of copywriting, visual direction, community growth, and creator workflows."`;
-      deliverables = [
-        { id: `del-sm-${day}-1`, label: '30-Day Multi-Platform Content Calendar & Copy Bank', type: 'spreadsheet', required: true },
-        { id: `del-sm-${day}-2`, label: 'Creator PR Seeding & Outreach Roster', type: 'spreadsheet', required: true },
-        { id: `del-sm-${day}-3`, label: 'Campaign Storyboard & Visual Style Guide', type: 'document', required: true },
-      ];
-    } else if (stage.stageNumber >= 4) {
-      title = `Day ${day}: Viral Video Engagement Blitz & Influencer Collaboration Triage`;
-      priority = 'high';
-      estimatedMinutes = 40;
-      category = 'Client Communications';
-      brief = 'A recent reel gained substantial organic traction, bringing 400+ comments and 25 creator collaboration inquiries. Filter top comments, draft 10 high-engagement community replies, and formulate 3 formal collaboration briefs.';
-      clientContext = `${client.ceoName} message: "Engage with top comments immediately to maximize algorithm velocity and lock in creator partnerships."`;
-      deliverables = [
-        { id: `del-sm-${day}-1`, label: 'Top-10 Community Engagement Reply Bank', type: 'text', required: true },
-        { id: `del-sm-${day}-2`, label: 'Influencer Gifting & Collaboration Agreement Brief', type: 'document', required: true },
-      ];
-    } else {
-      title = `Day ${day}: Weekly Content Matrix & Aesthetic Storyboard Briefs`;
-      priority = 'medium';
-      estimatedMinutes = 35;
-      category = 'Research & Synthesis';
-      brief = 'Prepare 5 days of multi-format social content: 3 carousel posts, 2 short-form video hooks, and 5 interactive story concepts aligned with brand aesthetic and audience interests.';
-      clientContext = `${client.ceoName} message: "Focus on clean aesthetic storytelling and clear CTAs for every post."`;
-      deliverables = [
-        { id: `del-sm-${day}-1`, label: 'Weekly Content Schedule & Copywriting Draft', type: 'document', required: true },
-      ];
-    }
-  } else {
-    // Executive VA, Travel Management, Social Outreach, Lead Gen, Content Writing
-    if (day === 90) {
-      title = `Day 90: Final Capstone Assessment — Executive Operations Mastery for ${client.companyName}`;
-      priority = 'urgent';
-      estimatedMinutes = 60;
-      category = 'Operations & CRM';
-      brief = `Deliver the complete Day 90 capstone portfolio for ${client.companyName}: Master operating procedures, synthesized strategic intelligence report, and multi-stakeholder execution playbook.`;
-      clientContext = `${client.ceoName} message: "This is your final capstone assessment. Show complete autonomy, impeccable precision, and executive excellence."`;
-      deliverables = [
-        { id: `del-gen-${day}-1`, label: 'Comprehensive Master Operating SOP Handbook', type: 'document', required: true },
-        { id: `del-gen-${day}-2`, label: 'Strategic Executive Deliverable & Intelligence Report', type: 'spreadsheet', required: true },
-      ];
-    } else {
-      title = `Day ${day}: ${stage.name} — Priority Operational Execution`;
-      priority = stage.stageNumber >= 5 ? 'urgent' : 'high';
-      estimatedMinutes = 40;
-      category = 'Operations & CRM';
-      brief = `Execute Day ${day} priority deliverable milestones for ${client.companyName}. Deconflict schedules, prepare executive summaries, and format status reports for ${client.ceoName}.`;
-      clientContext = `${client.ceoName} message: "I need clean, synthesized outputs with zero fluff. Keep the workflow moving forward with maximum clarity."`;
-      deliverables = [
-        { id: `del-gen-${day}-1`, label: 'Executive Deliverable & Status Brief', type: 'document', required: true },
-      ];
-    }
-  }
-
-  const deadlineType: 'none' | 'soft' | 'hard' =
-    priority === 'urgent' || day === 90 || day % 7 === 0
-      ? 'hard'
-      : priority === 'high' || stage.stageNumber >= 3
-      ? 'soft'
-      : day % 3 === 0
-      ? 'none'
-      : 'soft';
-
-  return {
-    id: `task-dyn-${service.id}-d${day}`,
-    dayNumber: day,
-    phaseId: stage.stageNumber,
-    title,
-    category,
-    priority,
-    estimatedMinutes,
-    deadlineHours: 8,
-    deadlineType,
-    brief,
-    clientContext,
-    deliverables,
-    status: 'in_progress',
-    createdAt: new Date().toISOString(),
-  };
+  // Enforce repetition prevention against previously generated tasks
+  return preventRepetition(generatedTask, opts.previousTasks, opts.isRemediation);
 };
 
 // ==============================================================================
-// 5-DIMENSION EVALUATION GENERATOR
+// 5-DIMENSION EVALUATION GENERATOR (Preserved)
 // ==============================================================================
 
 export interface EvaluationInput {
@@ -292,6 +276,34 @@ export const evaluateStudentSubmission = ({
 
     areasToImprove.push('Incorporate 2-3 additional long-tail aesthetic hashtags to improve organic explore discoverability.');
     areasToImprove.push('Specify optimal posting time windows based on follower activity peaks in future calendar briefs.');
+  } else if (service.id === 'travel_management') {
+    strengths.push('Constructed clean, door-to-door itinerary timing with realistic airport buffers.');
+    strengths.push('Vetted flight routing and lodging proximity against client preferences.');
+    strengths.push('Maintained clear policy compliance regarding per diem and cancellation rules.');
+
+    areasToImprove.push('Always include local emergency contact numbers and hospital locations for international legs.');
+    areasToImprove.push('Highlight timezone shifts prominently at the top of each travel day.');
+  } else if (service.id === 'social_outreach') {
+    strengths.push('Accurately identified ICP decision-maker titles with verified business email channels.');
+    strengths.push('Crafted low-friction, conversational call-to-actions without aggressive pitch slapping.');
+    strengths.push('Demonstrated strong understanding of prospect buying triggers.');
+
+    areasToImprove.push('Shorten cold email first touches to under 100 words for higher mobile read rates.');
+    areasToImprove.push('Test contrarian industry observations in follow-up subject lines.');
+  } else if (service.id === 'lead_gen_research') {
+    strengths.push('Applied rigorous Boolean search logic to filter out irrelevant recruiter and blog listings.');
+    strengths.push('Cross-verified contact intelligence across multiple independent public sources.');
+    strengths.push('Maintained high data hygiene standards with standardized formatting.');
+
+    areasToImprove.push('Always document exact sourcing URLs for corporate registry and entity validation.');
+    areasToImprove.push('Include confidence scores for estimated revenue and headcount figures.');
+  } else if (service.id === 'content_writing') {
+    strengths.push('Calibrated voice perfectly to target audience readability standards (Grade 7-8).');
+    strengths.push('Structured long-form copy with skimmable H2/H3 subheadings and clear bullet points.');
+    strengths.push('Demonstrated sharp commercial copy that translated technical features into tangible benefits.');
+
+    areasToImprove.push('Eliminate passive voice in opening paragraphs for higher reader engagement.');
+    areasToImprove.push('Ensure meta descriptions consistently include an active click verb.');
   } else {
     strengths.push('Delivered clean, highly structured executive outputs with logical information architecture.');
     strengths.push('Demonstrated sound judgement and proactive anticipation of stakeholder needs.');

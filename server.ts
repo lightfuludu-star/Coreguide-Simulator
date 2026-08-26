@@ -393,7 +393,7 @@ Respond ONLY with a valid, clean JSON object (no markdown code blocks, no backti
   // CoreGuide Client Conversation Endpoint - Strict Direct Answer Enforcement
   app.post('/api/chat/respond', async (req, res) => {
     try {
-      const { message, client, todaysTask, currentDay, currentStage, history } = req.body || {};
+      const { message, client, todaysTask, currentDay, currentStage, history, serviceId } = req.body || {};
 
       if (!message || typeof message !== 'string') {
         res.status(400).json({ error: 'Message is required' });
@@ -487,6 +487,7 @@ CRITICAL CONVERSATION CONTRACT & DIRECT ANSWER RULES:
    - If asked "Can I use Google Sheets / do this another way?": Give a realistic answer: "Yes, Google Sheets is fine as long as customer details and priority labels are preserved."
    - If asked "Why do you want me to do it this way?": Provide the real operational reason from the task context.
    - If asked "What should I do if the customer doesn't respond?": Provide a clear operational SLA (e.g. "Send one follow-up after 24 hours. If there's still no response, mark the case for review.").
+   - If asked for clarification on incomplete or ambiguous instructions (e.g. which person, missing travel dates, customer order lookup, campaign filters): Provide the specific concrete details (e.g. specific name/role, travel window, or CRM search parameters) so the student can proceed with execution.
    - If asked about unknown facts (personal private info, unlisted passwords, etc.): State clearly "I don't have that information right now." Never invent facts.
 
 4. BANNED GENERIC FILLER AS SOLE ANSWER:

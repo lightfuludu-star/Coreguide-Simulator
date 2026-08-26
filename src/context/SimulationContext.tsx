@@ -15,6 +15,7 @@ import {
   ALL_VA_SERVICES,
   getServiceById,
   SIMULATION_STAGES,
+  BETA_14_DAY_PHASES,
 } from '../data/vaServicesData';
 import { generateTaskForDay, evaluateStudentSubmission, getStageForDay } from '../data/taskGenerator';
 import { generateSimulatedClient, AVAILABLE_INDUSTRIES } from '../data/clientGenerator';
@@ -145,10 +146,10 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   };
 
-  // Initialize tasks with stored timestamps from localStorage if available, or initialize default tasks
+  // Initialize tasks with stored timestamps from localStorage if available, or generate Day 1 task
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     try {
-      const saved = localStorage.getItem(`coreguide_tasks_${selectedServiceId}`);
+      const saved = localStorage.getItem(`coreguide_tasks_v2_${selectedServiceId}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -158,13 +159,17 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     } catch {
       // ignore
     }
-    return activeService.initialTasks.map((t) => initializeTaskTiming(t));
+    const initial = generateTaskForDay(1, activeService, client, {
+      competencies: activeService.competencies,
+      industry: selectedIndustry,
+    });
+    return [initializeTaskTiming(initial)];
   });
 
   // Save tasks to localStorage on update to guarantee timers persist across page refreshes & reloads
   useEffect(() => {
     try {
-      localStorage.setItem(`coreguide_tasks_${selectedServiceId}`, JSON.stringify(tasks));
+      localStorage.setItem(`coreguide_tasks_v2_${selectedServiceId}`, JSON.stringify(tasks));
     } catch {
       // ignore
     }
@@ -181,19 +186,22 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setClient(assignedClient);
 
     try {
-      const saved = localStorage.getItem(`coreguide_tasks_${selectedServiceId}`);
+      const saved = localStorage.getItem(`coreguide_tasks_v2_${selectedServiceId}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setTasks(parsed.map((t) => initializeTaskTiming(t)));
         } else {
-          setTasks(s.initialTasks.map((t) => initializeTaskTiming(t)));
+          const initTask = generateTaskForDay(1, s, assignedClient, { competencies: s.competencies, industry: selectedIndustry });
+          setTasks([initializeTaskTiming(initTask)]);
         }
       } else {
-        setTasks(s.initialTasks.map((t) => initializeTaskTiming(t)));
+        const initTask = generateTaskForDay(1, s, assignedClient, { competencies: s.competencies, industry: selectedIndustry });
+        setTasks([initializeTaskTiming(initTask)]);
       }
     } catch {
-      setTasks(s.initialTasks.map((t) => initializeTaskTiming(t)));
+      const initTask = generateTaskForDay(1, s, assignedClient, { competencies: s.competencies, industry: selectedIndustry });
+      setTasks([initializeTaskTiming(initTask)]);
     }
 
     setCompetencies(s.competencies);
@@ -227,11 +235,21 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     const existingTask = tasks.find((t) => t.dayNumber === currentDay);
     if (!existingTask) {
-      const generated = generateTaskForDay(currentDay, activeService, client);
+      const evaluatedList = tasks.filter((t) => t.status === 'evaluated');
+      const latestEvaluated = evaluatedList[evaluatedList.length - 1];
+      const identifiedWeaknesses = latestEvaluated?.evaluation?.areasToImprove || [];
+
+      const generated = generateTaskForDay(currentDay, activeService, client, {
+        competencies,
+        previousTasks: tasks,
+        previousSubmissions: tasks.flatMap((t) => t.submissions || []),
+        identifiedWeaknesses,
+        industry: selectedIndustry,
+      });
       const initialized = initializeTaskTiming(generated);
       setTasks((prev) => [...prev, initialized]);
     }
-  }, [currentDay, activeService, client, tasks]);
+  }, [currentDay, activeService, client, tasks, competencies, selectedIndustry]);
 
   const startTask = (taskId: string) => {
     setTasks((prev) =>
@@ -239,25 +257,54 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     );
   };
 
-  const currentStage = getStageForDay(currentDay);
+  const is14DayTrack = !isAdmin && user?.accessType !== 'FULL_STUDENT';
+  const currentBetaPhase = BETA_14_DAY_PHASES.find((p) => currentDay >= p.startDay && currentDay <= p.endDay) || BETA_14_DAY_PHASES[4];
+  const currentStage = is14DayTrack
+    ? {
+        stageNumber: currentBetaPhase.phaseId,
+        name: currentBetaPhase.name,
+        daysRange: currentBetaPhase.daysRange,
+        startDay: currentBetaPhase.startDay,
+        endDay: currentBetaPhase.endDay,
+        focus: currentBetaPhase.description,
+        difficulty: currentBetaPhase.difficulty,
+      }
+    : getStageForDay(currentDay);
 
-  // Map 6 progression stages to UI phase items
-  const phases: SimulationPhase[] = SIMULATION_STAGES.slice(0, 6).map((s, idx) => ({
-    id: (idx + 1) as 1 | 2 | 3 | 4,
-    name: `Stage ${s.stageNumber}`,
-    title: s.name.replace(`Stage ${s.stageNumber} — `, ''),
-    daysRange: s.daysRange,
-    startDay: s.startDay,
-    endDay: s.endDay,
-    description: s.focus,
-    focusCompetencies: activeService.skills.map((sk) => sk.name).slice(0, 4),
-    status:
-      currentDay > s.endDay
-        ? 'completed'
-        : currentDay >= s.startDay
-        ? 'active'
-        : 'locked',
-  }));
+  // Map progression stages to UI phase items
+  const phases: SimulationPhase[] = is14DayTrack
+    ? BETA_14_DAY_PHASES.map((p) => ({
+        id: p.phaseId as 1 | 2 | 3 | 4,
+        name: p.name,
+        title: p.title,
+        daysRange: p.daysRange,
+        startDay: p.startDay,
+        endDay: p.endDay,
+        description: p.description,
+        focusCompetencies: activeService.skills.map((sk) => sk.name).slice(0, 4),
+        status:
+          currentDay > p.endDay
+            ? 'completed'
+            : currentDay >= p.startDay
+            ? 'active'
+            : 'locked',
+      }))
+    : SIMULATION_STAGES.slice(0, 6).map((s, idx) => ({
+        id: (idx + 1) as 1 | 2 | 3 | 4,
+        name: `Stage ${s.stageNumber}`,
+        title: s.name.replace(`Stage ${s.stageNumber} — `, ''),
+        daysRange: s.daysRange,
+        startDay: s.startDay,
+        endDay: s.endDay,
+        description: s.focus,
+        focusCompetencies: activeService.skills.map((sk) => sk.name).slice(0, 4),
+        status:
+          currentDay > s.endDay
+            ? 'completed'
+            : currentDay >= s.startDay
+            ? 'active'
+            : 'locked',
+      }));
 
   const selectService = (serviceId: string, industryPreference?: string) => {
     setSelectedServiceId(serviceId);
@@ -534,6 +581,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         currentDay,
         currentStage,
         history: updatedHistory,
+        serviceId: selectedServiceId,
       });
 
       const clientReply: ChatMessageItem = {
