@@ -1,4 +1,4 @@
-﻿import { ALL_VA_SERVICES } from '../src/data/vaServicesData.ts';
+import { ALL_VA_SERVICES } from '../src/data/vaServicesData.ts';
 import { generateSimulatedClient } from '../src/data/clientGenerator.ts';
 import { generateTaskForDay } from '../src/data/taskGenerator.ts';
 import { generateClientReply, generateDeterministicClientReply } from '../src/services/clientConversationEngine.ts';
@@ -21,7 +21,7 @@ async function runSection10Tests() {
   {
     console.log('\n--- Test 1: social_media + "Can you clarify the scope?" ---');
     const service = ALL_VA_SERVICES.find(s => s.id === 'social_media')!;
-    const client = generateSimulatedClient(service, 1);
+    const client = generateSimulatedClient(service.id);
     const task = generateTaskForDay(1, service, client);
     const reply = await generateClientReply({
       message: 'Can you clarify the scope?',
@@ -44,7 +44,7 @@ async function runSection10Tests() {
   {
     console.log('\n--- Test 2: travel_management + "What\'s the geography?" ---');
     const service = ALL_VA_SERVICES.find(s => s.id === 'travel_management')!;
-    const client = generateSimulatedClient(service, 1);
+    const client = generateSimulatedClient(service.id);
     const task = generateTaskForDay(1, service, client);
     const reply = await generateClientReply({
       message: "What's the geography?",
@@ -66,7 +66,7 @@ async function runSection10Tests() {
   {
     console.log('\n--- Test 3: customer_service + "What\'s our target?" ---');
     const service = ALL_VA_SERVICES.find(s => s.id === 'customer_service')!;
-    const client = generateSimulatedClient(service, 1);
+    const client = generateSimulatedClient(service.id);
     const task = generateTaskForDay(1, service, client);
     const reply = await generateClientReply({
       message: "What's our target?",
@@ -89,7 +89,7 @@ async function runSection10Tests() {
   {
     console.log('\n--- Test 4: content_writing + "What\'s the word count?" ---');
     const service = ALL_VA_SERVICES.find(s => s.id === 'content_writing')!;
-    const client = generateSimulatedClient(service, 4); // Day 4 is 1,500-word blog post
+    const client = generateSimulatedClient(service.id); // Day 4 is 1,500-word blog post
     const task = generateTaskForDay(4, service, client);
     const reply = await generateClientReply({
       message: "What's the word count?",
@@ -110,7 +110,7 @@ async function runSection10Tests() {
   {
     console.log('\n--- Test 5: lead_gen_research + "What\'s the research scope?" ---');
     const service = ALL_VA_SERVICES.find(s => s.id === 'lead_gen_research')!;
-    const client = generateSimulatedClient(service, 1);
+    const client = generateSimulatedClient(service.id);
     const task = generateTaskForDay(1, service, client);
     const reply = await generateClientReply({
       message: "What's the research scope?",
@@ -132,7 +132,7 @@ async function runSection10Tests() {
   {
     console.log('\n--- Test 6: social_marketing_outreach + "Who exactly are we targeting?" ---');
     const service = ALL_VA_SERVICES.find(s => s.id === 'social_outreach')!;
-    const client = generateSimulatedClient(service, 1);
+    const client = generateSimulatedClient(service.id);
     const task = generateTaskForDay(1, service, client);
     const reply = await generateClientReply({
       message: 'Who exactly are we targeting?',

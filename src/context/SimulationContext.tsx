@@ -93,6 +93,7 @@ const SimulationContext = createContext<SimulationContextType | undefined>(undef
 export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const {
     user,
+    isAdmin,
     activateStudentById,
     reactivateStudentById,
     extendStudentById,
