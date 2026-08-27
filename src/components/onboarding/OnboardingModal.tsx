@@ -101,6 +101,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
                   return (
                     <div
                       key={srv.id}
+                      data-service-id={srv.id}
                       onClick={() => setSelectedServiceId(srv.id)}
                       className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                         isSelected
@@ -144,6 +145,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
                     return (
                       <div
                         key={ind.id}
+                        data-industry-id={ind.id}
                         onClick={() => setSelectedIndustryId(ind.id)}
                         className={`p-3 rounded-xl border cursor-pointer transition-all ${
                           isSelected
@@ -334,6 +336,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
           {step < 5 ? (
             <button
               type="button"
+              data-testid="onboarding-continue"
               onClick={() => setStep(step + 1)}
               className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center space-x-1.5 transition-colors"
             >
@@ -343,6 +346,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
           ) : (
             <button
               type="button"
+              data-testid="onboarding-start"
               onClick={handleFinishOnboarding}
               className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center space-x-1.5 transition-colors"
             >
