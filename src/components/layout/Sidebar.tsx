@@ -8,6 +8,7 @@ import {
   LogOut,
   ArrowRightLeft,
   Shield,
+  RotateCcw,
 } from 'lucide-react';
 import { useSimulation, NavigationTab } from '../../context/SimulationContext';
 import { useAuth } from '../../context/AuthContext';
@@ -25,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
     tasks,
     activeService,
     setIsOnboardingOpen,
+    resetActiveSimulation,
     currentStage,
     betaState,
   } = useSimulation();
@@ -194,6 +196,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
               </button>
             </div>
           )}
+
+          {/* Simulation Tools (Switch Service & Safe Track Reset) */}
+          <div className="pt-3 mt-3 border-t border-slate-800 space-y-1.5">
+            <p className="px-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase mb-1.5">
+              Simulation Track
+            </p>
+            <button
+              onClick={() => setIsOnboardingOpen(true)}
+              className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors"
+              title="Change Service Specialization or Industry"
+            >
+              <ArrowRightLeft className="w-4 h-4 text-indigo-400" />
+              <span className="truncate">Switch Track</span>
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm(`Reset your ${activeService.name} simulation back to Day 1? This only clears your current track's progress.`)) {
+                  resetActiveSimulation();
+                }
+              }}
+              className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium text-rose-300/80 hover:text-rose-200 hover:bg-rose-950/30 transition-colors"
+              title="Reset current track back to Day 1"
+            >
+              <RotateCcw className="w-4 h-4 text-rose-400" />
+              <span className="truncate">Reset to Day 1</span>
+            </button>
+          </div>
         </nav>
 
         {/* User Footer */}

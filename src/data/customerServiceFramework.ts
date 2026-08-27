@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // CoreGuide VA Simulator - Customer Service VA 14-Day Curriculum Framework
 // Customer-Interaction Model: Food, Fashion & E-Commerce Scenarios
 // ==============================================================================
@@ -39,15 +39,26 @@ export const CS_INDUSTRY_CONTEXTS: Record<string, CustomerScenarioContext> = {
     returnWindowDays: 30,
     freeShippingThreshold: 50,
   },
+  health_wellness: {
+    industryId: 'health_wellness' as any,
+    industryName: 'Health, Wellness & Clean Supplements',
+    brandName: 'PureGlow Wellness Labs',
+    typicalProducts: ['Magnesium Glycinate Complex', 'Daily Probiotic Formula', 'Organic Ashwagandha Elixir', 'Liposomal Vitamin C'],
+    returnWindowDays: 30,
+    freeShippingThreshold: 50,
+  },
 };
 
 export function getCustomerServiceContext(client: ClientPersona): CustomerScenarioContext {
   const ind = (client.industry || '').toLowerCase();
-  if (ind.includes('food') || ind.includes('restaurant') || ind.includes('culinary') || ind.includes('beverage')) {
+  if (ind.includes('food') || ind.includes('restaurant') || ind.includes('culinary') || ind.includes('beverage') || ind.includes('gourmet')) {
     return CS_INDUSTRY_CONTEXTS.food_delivery;
   }
-  if (ind.includes('fashion') || ind.includes('apparel') || ind.includes('clothing') || ind.includes('luxury') || ind.includes('beauty')) {
+  if (ind.includes('fashion') || ind.includes('apparel') || ind.includes('clothing') || ind.includes('luxury')) {
     return CS_INDUSTRY_CONTEXTS.fashion_apparel;
+  }
+  if (ind.includes('health') || ind.includes('wellness') || ind.includes('supplement')) {
+    return CS_INDUSTRY_CONTEXTS.health_wellness || CS_INDUSTRY_CONTEXTS.ecommerce_goods;
   }
   return CS_INDUSTRY_CONTEXTS.ecommerce_goods;
 }
@@ -76,12 +87,15 @@ export function generateCustomerServiceTask(params: GenerateCustomerServiceTaskP
   if (dayNumber === 1) {
     const isFood = ctx.industryId === 'food_delivery';
     const isFashion = ctx.industryId === 'fashion_apparel';
+    const isHealth = (ctx as any).industryId === 'health_wellness';
     const customerName = 'Olivia Vance';
     const emotionState = 'Frustrated & Disappointed';
     const itemIssue = isFood
-      ? 'ordered the Wood-Fired Margherita Pizza and Truffle Pasta, but received a cold Vegetarian Calzone with crushed packaging'
+      ? 'ordered the Signature Spicy Peppered Shawarma with garlic tahini, but opened the container to find a sweet vanilla crepe and fruit flavour instead'
       : isFashion
-      ? 'ordered the Silk Trousers in Size M for a weekend wedding, but opened the package to find a torn Linen Shirt in Size XS'
+      ? 'ordered the Silk Trousers in Size M for an important weekend wedding, but opened the parcel to find a torn Linen Shirt in Size XS'
+      : isHealth
+      ? 'ordered the Organic Calm Magnesium Glycinate formula, but received a caffeinated energy booster that triggered sleep disturbance'
       : 'ordered the Ergonomic Desk Cushion, but received a cracked Essential Oil Diffuser with missing cables';
 
     return {

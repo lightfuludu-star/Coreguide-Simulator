@@ -77,27 +77,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // 2. Default to Owner Admin account on first load so administrator has instant access
-    const adminAccount = INITIAL_REGISTERED_STUDENTS.find(
-      (s) => s.email.toLowerCase() === 'lightfuludu@gmail.com'
-    ) || {
-      id: 'admin-owner-001',
-      email: 'lightfuludu@gmail.com',
-      fullName: 'Administrator (Owner)',
-      role: 'admin',
-      accessType: 'ADMIN',
-      currentDay: 14,
-      targetNiche: 'Executive & Tech VA',
-      avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&auto=format&fit=crop&q=80',
-      createdAt: new Date().toISOString(),
-      simulationStartDate: new Date().toISOString(),
-      lastActivity: new Date().toISOString(),
-      is_beta_tester: false,
-      beta_status: 'active',
-    };
-
-    localStorage.setItem('coreguide_va_user', JSON.stringify(adminAccount));
-    return adminAccount;
+    // Default to unauthenticated visitor
+    return null;
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -192,16 +173,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       fullName: email.split('@')[0].replace('.', ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
       role: isAdmin ? 'admin' : 'student',
-      accessType: isAdmin ? 'ADMIN' : 'NOT_ACTIVATED',
+      accessType: isAdmin ? 'ADMIN' : 'BETA_TESTER',
       currentDay: 1,
       targetNiche: 'Executive & Tech VA',
       createdAt: new Date().toISOString(),
       simulationStartDate: new Date().toISOString(),
       lastActivity: new Date().toISOString(),
-      is_beta_tester: false,
-      beta_status: undefined,
-      beta_start_date: null,
-      beta_expiry_date: null,
+      is_beta_tester: !isAdmin,
+      beta_status: 'active',
+      beta_start_date: new Date().toISOString(),
+      beta_expiry_date: calculateBetaExpiry(new Date().toISOString(), 14),
+      beta_duration: 14,
     };
 
     setUser(fallbackProfile);
@@ -227,7 +209,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             full_name: fullName,
             target_niche: targetNiche,
             role: isAdmin ? 'admin' : 'student',
-            access_type: isAdmin ? 'ADMIN' : 'NOT_ACTIVATED',
+            access_type: isAdmin ? 'ADMIN' : 'BETA_TESTER',
           },
         },
       });
@@ -241,16 +223,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: data.user.email || email,
           fullName: fullName,
           role: isAdmin ? 'admin' : 'student',
-          accessType: isAdmin ? 'ADMIN' : 'NOT_ACTIVATED',
+          accessType: isAdmin ? 'ADMIN' : 'BETA_TESTER',
           currentDay: 1,
-          targetNiche: targetNiche,
+          targetNiche: targetNiche || 'Executive VA',
           createdAt: now,
           simulationStartDate: now,
           lastActivity: now,
-          is_beta_tester: false,
-          beta_status: undefined,
-          beta_start_date: null,
-          beta_expiry_date: null,
+          is_beta_tester: !isAdmin,
+          beta_status: 'active',
+          beta_start_date: now,
+          beta_expiry_date: calculateBetaExpiry(now, 14),
+          beta_duration: 14,
         };
         setUser(profile);
         upsertStudent(profile);
@@ -261,23 +244,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true };
     }
 
-    // Local signup fallback: Defaults strictly to NOT_ACTIVATED for students
+    // Local signup fallback: Defaults to active 14-day Beta Tester for new students
     await new Promise((res) => setTimeout(res, 300));
     const newProfile: StudentProfile = {
       id: 'student-' + Math.random().toString(36).substring(2, 9),
       email,
       fullName,
       role: isAdmin ? 'admin' : 'student',
-      accessType: isAdmin ? 'ADMIN' : 'NOT_ACTIVATED',
+      accessType: isAdmin ? 'ADMIN' : 'BETA_TESTER',
       currentDay: 1,
       targetNiche: targetNiche || 'Executive & Tech VA',
       createdAt: now,
       simulationStartDate: now,
       lastActivity: now,
-      is_beta_tester: false,
-      beta_status: undefined,
-      beta_start_date: null,
-      beta_expiry_date: null,
+      is_beta_tester: !isAdmin,
+      beta_status: 'active',
+      beta_start_date: now,
+      beta_expiry_date: calculateBetaExpiry(now, 14),
+      beta_duration: 14,
     };
 
     setUser(newProfile);

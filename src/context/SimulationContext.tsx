@@ -66,6 +66,9 @@ export interface SimulationContextType {
   isClientTyping: boolean;
   isOnboardingOpen: boolean;
   setIsOnboardingOpen: (open: boolean) => void;
+  hasCompletedOnboarding: boolean;
+  completeOnboarding: (serviceId: string, industryId: string, experienceLevel?: string) => void;
+  resetActiveSimulation: () => void;
   // Beta Test Layer State
   betaState: BetaAccessState;
   isBetaAdminModalOpen: boolean;
@@ -104,18 +107,74 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     grantAdminById,
   } = useAuth();
 
+  const userId = user?.id || 'guest';
   const betaState = getBetaAccessState(user);
-  const [selectedServiceId, setSelectedServiceId] = useState<string>('customer_service');
-  const [selectedIndustry, setSelectedIndustry] = useState<string>('ecommerce_beauty');
+
+  // 1. Authoritative active service selection
+  const [selectedServiceId, setSelectedServiceId] = useState<string>(() => {
+    if (user?.id) {
+      const savedService = localStorage.getItem(`coreguide_service_${user.id}`);
+      if (savedService && ALL_VA_SERVICES.some((s) => s.id === savedService)) {
+        return savedService;
+      }
+    }
+    return 'executive_admin';
+  });
+
+  // 2. Authoritative industry selection
+  const [selectedIndustry, setSelectedIndustry] = useState<string>(() => {
+    if (user?.id) {
+      const savedInd = localStorage.getItem(`coreguide_ind_${user.id}_${selectedServiceId}`);
+      if (savedInd) return savedInd;
+    }
+    if (selectedServiceId === 'customer_service') return 'food_delivery';
+    if (selectedServiceId === 'travel_management') return 'founder';
+    if (selectedServiceId === 'social_media') return 'fashion_lifestyle';
+    if (selectedServiceId === 'social_outreach') return 'digital_marketing';
+    if (selectedServiceId === 'lead_gen_research') return 'saas_technology';
+    if (selectedServiceId === 'content_writing') return 'web3_tech';
+    return 'b2b_saas';
+  });
+
+  // 3. Per-student onboarding status
+  const hasCompletedOnboarding = !!(user && localStorage.getItem(`coreguide_onboarded_${user.id}`) === 'true');
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
+    // If student is logged in and has not completed onboarding, force modal open
+    if (user && user.role !== 'admin' && !hasCompletedOnboarding) {
+      return true;
+    }
+    return false;
+  });
+
+  // 4. Strict Day 1 & Max Day calculation: Scoped to (userId + selectedServiceId)
+  const getSavedSimulationState = (uid: string, srvId: string) => {
+    try {
+      const raw = localStorage.getItem(`coreguide_sim_${uid}_${srvId}`);
+      if (raw) return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const initialSimState = getSavedSimulationState(userId, selectedServiceId);
+
   const [currentDay, setCurrentDayState] = useState<number>(() => {
-    return user?.currentDay ? Math.min(user.currentDay, betaState.maxAllowedSimulationDay) : 6;
+    if (initialSimState?.currentDay) {
+      return Math.max(1, Math.min(initialSimState.currentDay, betaState.maxAllowedSimulationDay));
+    }
+    return 1;
   });
+
   const [maxUnlockedDay, setMaxUnlockedDay] = useState<number>(() => {
-    return user?.currentDay ? Math.min(user.currentDay, betaState.maxAllowedSimulationDay) : 6;
+    if (initialSimState?.maxUnlockedDay) {
+      return Math.max(1, Math.min(initialSimState.maxUnlockedDay, betaState.maxAllowedSimulationDay));
+    }
+    return 1;
   });
+
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [isBetaAdminModalOpen, setIsBetaAdminModalOpen] = useState<boolean>(false);
   const [isClientTyping, setIsClientTyping] = useState<boolean>(false);
 
@@ -147,14 +206,29 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   };
 
+  // Helper to verify task belongs to the active service
+  const doesTaskBelongToService = (t: TaskItem, srvId: string): boolean => {
+    if (srvId === 'executive_admin') return t.id.startsWith('task-eva-') || t.id.includes('eva');
+    if (srvId === 'customer_service') return t.id.startsWith('task-cs-') || t.id.includes('cs');
+    if (srvId === 'social_media') return t.id.startsWith('task-sm-') || t.id.includes('sm');
+    if (srvId === 'travel_management') return t.id.startsWith('task-tm-') || t.id.includes('tm');
+    if (srvId === 'social_outreach') return t.id.startsWith('task-so-') || t.id.includes('so');
+    if (srvId === 'lead_gen_research') return t.id.startsWith('task-lg-') || t.id.includes('lg');
+    if (srvId === 'content_writing') return t.id.startsWith('task-cw-') || t.id.includes('cw');
+    return true;
+  };
+
   // Initialize tasks with stored timestamps from localStorage if available, or generate Day 1 task
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     try {
-      const saved = localStorage.getItem(`coreguide_tasks_v2_${selectedServiceId}`);
+      const saved = localStorage.getItem(`coreguide_tasks_v3_${userId}_${selectedServiceId}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((t) => initializeTaskTiming(t));
+          const allBelong = parsed.every((t) => doesTaskBelongToService(t, selectedServiceId));
+          if (allBelong) {
+            return parsed.map((t) => initializeTaskTiming(t));
+          }
         }
       }
     } catch {
@@ -167,18 +241,52 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return [initializeTaskTiming(initial)];
   });
 
-  // Save tasks to localStorage on update to guarantee timers persist across page refreshes & reloads
+  // Save tasks and simulation state to localStorage scoped by (userId + selectedServiceId)
   useEffect(() => {
     try {
-      localStorage.setItem(`coreguide_tasks_v2_${selectedServiceId}`, JSON.stringify(tasks));
+      localStorage.setItem(`coreguide_tasks_v3_${userId}_${selectedServiceId}`, JSON.stringify(tasks));
+      localStorage.setItem(`coreguide_sim_${userId}_${selectedServiceId}`, JSON.stringify({
+        currentDay,
+        maxUnlockedDay,
+        selectedIndustry,
+        updatedAt: new Date().toISOString(),
+      }));
     } catch {
       // ignore
     }
-  }, [tasks, selectedServiceId]);
+  }, [tasks, userId, selectedServiceId, currentDay, maxUnlockedDay, selectedIndustry]);
 
   const [competencies, setCompetencies] = useState<CompetencyMetric[]>(activeService.competencies);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [chatMessages, setChatMessages] = useState<ChatMessageItem[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessageItem[]>(() => {
+    try {
+      const savedChat = localStorage.getItem(`coreguide_chat_v3_${userId}_${selectedServiceId}`);
+      if (savedChat) {
+        const parsed = JSON.parse(savedChat);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return [
+      {
+        id: 'msg-init-1',
+        sender: 'client',
+        content: `Hi! I'm ${client.ceoName} (${client.ceoRole} at ${client.companyName}). Welcome to the team! I've assigned your Day 1 task in the queue. Feel free to message me here if you need any clarification as you work through it.`,
+        timestamp: '9:00 AM',
+        status: 'read',
+      },
+    ];
+  });
+
+  // Save chat messages scoped by (userId + selectedServiceId)
+  useEffect(() => {
+    try {
+      localStorage.setItem(`coreguide_chat_v3_${userId}_${selectedServiceId}`, JSON.stringify(chatMessages));
+    } catch {
+      // ignore
+    }
+  }, [chatMessages, userId, selectedServiceId]);
 
   // Setup client and tasks whenever service or industry changes
   useEffect(() => {
@@ -186,11 +294,20 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const assignedClient = generateSimulatedClient(selectedServiceId, selectedIndustry);
     setClient(assignedClient);
 
+    const savedSim = getSavedSimulationState(userId, selectedServiceId);
+    if (savedSim?.currentDay) {
+      setCurrentDayState(Math.max(1, Math.min(savedSim.currentDay, betaState.maxAllowedSimulationDay)));
+      setMaxUnlockedDay(Math.max(1, Math.min(savedSim.maxUnlockedDay || savedSim.currentDay, betaState.maxAllowedSimulationDay)));
+    } else {
+      setCurrentDayState(1);
+      setMaxUnlockedDay(1);
+    }
+
     try {
-      const saved = localStorage.getItem(`coreguide_tasks_v2_${selectedServiceId}`);
+      const saved = localStorage.getItem(`coreguide_tasks_v3_${userId}_${selectedServiceId}`);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((t) => doesTaskBelongToService(t, selectedServiceId))) {
           setTasks(parsed.map((t) => initializeTaskTiming(t)));
         } else {
           const initTask = generateTaskForDay(1, s, assignedClient, { competencies: s.competencies, industry: selectedIndustry });
@@ -206,19 +323,39 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
 
     setCompetencies(s.competencies);
-    setCurrentDayState(1);
-    setMaxUnlockedDay(1);
 
-    // Initial greeting chat message from client
-    setChatMessages([
-      {
-        id: 'msg-init-1',
-        sender: 'client',
-        content: `Hi! I'm ${assignedClient.ceoName} (${assignedClient.ceoRole} at ${assignedClient.companyName}). Welcome to the team! I've assigned your Day 1 task in the queue. Feel free to message me here if you need any clarification as you work through it.`,
-        timestamp: '9:00 AM',
-        status: 'read',
-      },
-    ]);
+    // Initial greeting chat message from client if no saved chat
+    const savedChat = localStorage.getItem(`coreguide_chat_v3_${userId}_${selectedServiceId}`);
+    if (savedChat) {
+      try {
+        const parsed = JSON.parse(savedChat);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setChatMessages(parsed);
+        } else {
+          setChatMessages([
+            {
+              id: 'msg-init-1',
+              sender: 'client',
+              content: `Hi! I'm ${assignedClient.ceoName} (${assignedClient.ceoRole} at ${assignedClient.companyName}). Welcome to the team! I've assigned your Day 1 task in the queue. Feel free to message me here if you need any clarification as you work through it.`,
+              timestamp: '9:00 AM',
+              status: 'read',
+            },
+          ]);
+        }
+      } catch {
+        // ignore
+      }
+    } else {
+      setChatMessages([
+        {
+          id: 'msg-init-1',
+          sender: 'client',
+          content: `Hi! I'm ${assignedClient.ceoName} (${assignedClient.ceoRole} at ${assignedClient.companyName}). Welcome to the team! I've assigned your Day 1 task in the queue. Feel free to message me here if you need any clarification as you work through it.`,
+          timestamp: '9:00 AM',
+          status: 'read',
+        },
+      ]);
+    }
 
     setNotifications([
       {
@@ -230,7 +367,7 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         read: false,
       },
     ]);
-  }, [selectedServiceId, selectedIndustry]);
+  }, [selectedServiceId, selectedIndustry, userId]);
 
   // Ensure current day task exists and has timing initialized
   useEffect(() => {
@@ -308,10 +445,57 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }));
 
   const selectService = (serviceId: string, industryPreference?: string) => {
+    if (user?.id) {
+      localStorage.setItem(`coreguide_service_${user.id}`, serviceId);
+      if (industryPreference) {
+        localStorage.setItem(`coreguide_ind_${user.id}_${serviceId}`, industryPreference);
+      }
+    }
     setSelectedServiceId(serviceId);
     if (industryPreference) {
       setSelectedIndustry(industryPreference);
     }
+  };
+
+  const completeOnboarding = (serviceId: string, industryId: string, experienceLevel?: string) => {
+    if (user?.id) {
+      localStorage.setItem(`coreguide_onboarded_${user.id}`, 'true');
+      localStorage.setItem(`coreguide_service_${user.id}`, serviceId);
+      localStorage.setItem(`coreguide_ind_${user.id}_${serviceId}`, industryId);
+      if (experienceLevel) {
+        localStorage.setItem(`coreguide_exp_${user.id}`, experienceLevel);
+      }
+    }
+    setSelectedServiceId(serviceId);
+    setSelectedIndustry(industryId);
+    setIsOnboardingOpen(false);
+  };
+
+  const resetActiveSimulation = () => {
+    try {
+      localStorage.removeItem(`coreguide_sim_${userId}_${selectedServiceId}`);
+      localStorage.removeItem(`coreguide_tasks_v3_${userId}_${selectedServiceId}`);
+      localStorage.removeItem(`coreguide_chat_v3_${userId}_${selectedServiceId}`);
+    } catch {
+      // ignore
+    }
+    const s = getServiceById(selectedServiceId);
+    const refreshedClient = generateSimulatedClient(selectedServiceId, selectedIndustry);
+    setClient(refreshedClient);
+    setCompetencies(s.competencies);
+    setCurrentDayState(1);
+    setMaxUnlockedDay(1);
+    const initTask = generateTaskForDay(1, s, refreshedClient, { competencies: s.competencies, industry: selectedIndustry });
+    setTasks([initializeTaskTiming(initTask)]);
+    setChatMessages([
+      {
+        id: 'msg-init-reset-' + Date.now(),
+        sender: 'client',
+        content: `Simulation reset to Day 1. Hi! I'm ${refreshedClient.ceoName} (${refreshedClient.ceoRole} at ${refreshedClient.companyName}). Welcome to the team! I've assigned your Day 1 task in the queue. Feel free to message me here if you need any clarification as you work through it.`,
+        timestamp: '9:00 AM',
+        status: 'read',
+      },
+    ]);
   };
 
   // Enforce sequential day progression: cannot navigate past maxUnlockedDay or beta limit (Day 14)
@@ -649,6 +833,9 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isClientTyping,
         isOnboardingOpen,
         setIsOnboardingOpen,
+        hasCompletedOnboarding,
+        completeOnboarding,
+        resetActiveSimulation,
         betaState,
         isBetaAdminModalOpen,
         setIsBetaAdminModalOpen,

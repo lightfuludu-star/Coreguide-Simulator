@@ -9,9 +9,11 @@ import {
 import { useSimulation } from '../../context/SimulationContext';
 
 export const ClientChatView: React.FC = () => {
-  const { client, chatMessages, sendChatMessage, isClientTyping, currentDay } = useSimulation();
+  const { client, chatMessages, sendChatMessage, isClientTyping, currentDay, activeService } = useSimulation();
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const isCustomerService = activeService.id === 'customer_service';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -32,11 +34,17 @@ export const ClientChatView: React.FC = () => {
     sendChatMessage(prompt);
   };
 
-  const quickQuestions = [
-    `Hi ${client.ceoName.split(' ')[0]}, can you clarify what you need for Day ${currentDay}?`,
-    `Do you have a preferred deadline time today?`,
-    `I am preparing your deliverable right now!`,
-  ];
+  const quickQuestions = isCustomerService
+    ? [
+        `I am truly sorry about this mix-up! We are arranging an immediate fresh replacement with express courier right now.`,
+        `I completely understand your frustration. Would you prefer an immediate replacement, or a full refund plus a $15 courtesy credit?`,
+        `Could you confirm if there were any allergy concerns so I can flag this with our operations team immediately?`,
+      ]
+    : [
+        `Hi ${client.ceoName.split(' ')[0]}, can you clarify what you need for Day ${currentDay}?`,
+        `Do you have a preferred deadline time today?`,
+        `I am preparing your deliverable right now!`,
+      ];
 
   return (
     <div className="max-w-4xl mx-auto h-[calc(100vh-140px)] min-h-[560px] flex flex-col bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
@@ -55,8 +63,12 @@ export const ClientChatView: React.FC = () => {
           <div>
             <div className="flex items-center space-x-2">
               <h1 className="text-sm sm:text-base font-bold text-slate-900">{client.ceoName}</h1>
-              <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
-                Online
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                isCustomerService
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              }`}>
+                {isCustomerService ? 'Live Customer Scenario' : 'Online'}
               </span>
             </div>
             <p className="text-xs text-slate-500">
@@ -75,8 +87,14 @@ export const ClientChatView: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/40">
         {/* Simple helper pill */}
         <div className="text-center my-2">
-          <span className="inline-block px-3 py-1 rounded-full bg-slate-200/70 text-slate-600 text-xs font-medium">
-            This is your direct message conversation with {client.ceoName}
+          <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+            isCustomerService
+              ? 'bg-amber-100 text-amber-900 border border-amber-200'
+              : 'bg-slate-200/70 text-slate-600'
+          }`}>
+            {isCustomerService
+              ? `Real-Time Customer Support Simulator • Respond with empathy, de-escalation, and clear solutions`
+              : `This is your direct message conversation with ${client.ceoName}`}
           </span>
         </div>
 
